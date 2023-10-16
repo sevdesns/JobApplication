@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Principal;
 using JobApplicationLibrary.Models;
 using JobApplicationLibrary.Services;
 
@@ -13,13 +12,12 @@ namespace JobApplicationLibrary
         private const int autoAcceptedYearOfExperience = 15;
         private readonly IIdentityValidator identityValidator;
         private List<string> techStackList = new() { "C#", "RabbitMQ", "Microservice", "Visual Studio" };
-        
 
         public ApplicationEvaluator(IIdentityValidator identityValidator)
         {
-           
             this.identityValidator = identityValidator;
         }
+
         public ApplicationResult Evaluate(JobApplication form)
         {
             if (form.Applicant is null)
@@ -28,10 +26,16 @@ namespace JobApplicationLibrary
             if (form.Applicant.Age < minAge)
                 return ApplicationResult.AutoRejected;
 
+            identityValidator.ValidationMode = form.Applicant.Age > 50 ? ValidationMode.Detailed : ValidationMode.Quick;
+
+            if (identityValidator.CountryDataProvider.CountryData.Country != "TURKEY")
+                return ApplicationResult.TransferredToCTO;
+
+
             var validIdentity = identityValidator.IsValid(form.Applicant.IdentityNumber);
+            identityValidator.IsValid(form.Applicant.IdentityNumber);
             if (!validIdentity)
                 return ApplicationResult.TransferredToHR;
-            
 
             var sr = GetTechStackSimilarityRate(form.TechStackList);
 
@@ -43,6 +47,7 @@ namespace JobApplicationLibrary
 
             return ApplicationResult.AutoAccepted;
         }
+
         private int GetTechStackSimilarityRate(List<string> techStacks)
         {
             var matchedCount =
@@ -53,6 +58,8 @@ namespace JobApplicationLibrary
             return (int)((double)matchedCount / techStackList.Count) * 100;
         }
     }
+
+
     public enum ApplicationResult
     {
         AutoRejected,
